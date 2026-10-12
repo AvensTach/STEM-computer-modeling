@@ -1,15 +1,13 @@
 import numpy as np
 import pandas as pd
 
-# Глобальні константи
-STEP = 1  # Крок модельного часу - 1 година
+# Global constants
+STEP = 1
 WORK_HOURS_PER_DAY = 9
 DAYS = 5
 TOTAL_STEPS = WORK_HOURS_PER_DAY * DAYS
-QUEUE_LIMIT = 3
 DAILY_SALARY = 2000
 
-# Параметри послуг: [назва, тривалість (год), вартість, ймовірність]
 SERVICES = [
     {'name': 'Consultation', 'duration': 1, 'cost': 500, 'prob': 0.3},
     {'name': 'Hygiene', 'duration': 1, 'cost': 1500, 'prob': 0.2},
@@ -17,7 +15,7 @@ SERVICES = [
     {'name': 'Extraction', 'duration': 2, 'cost': 3000, 'prob': 0.1}
 ]
 SERVICE_PROBS = [s['prob'] for s in SERVICES]
-AVG_SERVICE_COST = sum(s['cost'] * s['prob'] for s in SERVICES)  # Для розрахунку втраченого прибутку
+AVG_SERVICE_COST = sum(s['cost'] * s['prob'] for s in SERVICES)
 
 
 class Dentist:
@@ -26,14 +24,14 @@ class Dentist:
         self.total_worked_hours = 0
 
     def take_client(self):
-        # Випадковий вибір послуги згідно заданих ймовірностей
         service = np.random.choice(SERVICES, p=SERVICE_PROBS)
         self.busy_time_left = service['duration']
         return service
 
 
 class Clinic:
-    def __init__(self):
+    # Added parameters to change queue limit and flow intensity (for task 9)
+    def __init__(self, queue_limit=3, arrival_multiplier=1.0):
         self.dentist = Dentist()
         self.queue = 0
         self.lost_clients = 0
@@ -41,20 +39,25 @@ class Clinic:
         self.total_income = 0
 
         self.outage_time_left = 0
-        self.current_day = 1
-        self.current_hour = 9  # Робочий день з 09:00 до 18:00
+        self.outages_count = 0  # Track number of outage events
+        self.outage_hours_total = 0  # Track total hours lost due to outages
 
-        # Для логування
-        self.log = []
+        self.current_day = 1
+        self.current_hour = 9
+
+        self.queue_limit = queue_limit
+        self.arrival_multiplier = arrival_multiplier
 
     def check_daily_outage(self):
-        # Перевірка на початку робочого дня (о 09:00)
         if self.current_hour == 9:
-            if np.random.rand() < 0.05:  # Ймовірність 5%
-                self.outage_time_left = np.random.choice([3, 4])  # 3 або 4 години
+            if np.random.rand() < 0.05:
+                duration = np.random.choice([3, 4])
+                self.outage_time_left = duration
+                self.outages_count += 1
+                self.outage_hours_total += duration
 
     def generate_clients(self):
-        # Визначення інтенсивності потоку
+        # Determine flow intensity based on the time of day
         if 9 <= self.current_hour < 12:
             lam = 1.5
         elif 12 <= self.current_hour < 15:
@@ -62,57 +65,47 @@ class Clinic:
         else:
             lam = 2.5
 
+        lam *= self.arrival_multiplier
         arrived = np.random.poisson(lam)
 
-        # Розподіл клієнтів (у чергу або відмова)
+        # Determine "effective capacity" for this step
+        # If the doctor is free and there is no outage, the client can sit in the chair, bypassing the queue
+        effective_limit = self.queue_limit
+        if self.dentist.busy_time_left == 0 and self.outage_time_left == 0:
+            effective_limit += 1
+
+        # Distribute clients (into the clinic or rejected)
         for _ in range(arrived):
-            if self.queue < QUEUE_LIMIT:
+            if self.queue < effective_limit:
                 self.queue += 1
             else:
                 self.lost_clients += 1
                 self.lost_profit += AVG_SERVICE_COST
 
     def process_service(self):
-        # Якщо немає світла/води
         if self.outage_time_left > 0:
             self.outage_time_left -= 1
-            status = "Outage"
-            return status
+            return "Outage"
 
-        status = "Waiting"
-        # Якщо лікар зайнятий з минулої години
         if self.dentist.busy_time_left > 0:
             self.dentist.busy_time_left -= 1
             self.dentist.total_worked_hours += 1
-            status = "Working (Continues)"
+            return "Working (Continues)"
 
-        # Якщо лікар звільнився (або був вільний) і є черга
-        if self.dentist.busy_time_left == 0 and self.queue > 0:
+        elif self.queue > 0:
             self.queue -= 1
             service = self.dentist.take_client()
             self.total_income += service['cost']
-
-            self.dentist.busy_time_left -= 1  # Віднімаємо поточну годину
+            self.dentist.busy_time_left -= 1
             self.dentist.total_worked_hours += 1
-            status = f"Started: {service['name']}"
+            return f"Started: {service['name']}"
 
-        return status
+        return "Waiting"
 
     def step(self):
         self.check_daily_outage()
         self.generate_clients()
-        status = self.process_service()
-
-        # Запис статистики поточного кроку
-        self.log.append({
-            'Day': self.current_day,
-            'Hour': f"{self.current_hour}:00",
-            'Queue': self.queue,
-            'Dentist Status': status,
-            'Lost Clients': self.lost_clients
-        })
-
-        # Просування часу
+        self.process_service()
         self.current_hour += STEP
         if self.current_hour >= 18:
             self.current_day += 1
@@ -121,31 +114,52 @@ class Clinic:
     def run_simulation(self):
         for _ in range(TOTAL_STEPS):
             self.step()
-
-        # Підсумкові розрахунки
         net_profit = self.total_income - (DAILY_SALARY * DAYS)
-
-        results = {
+        return {
             'Total Income (UAH)': self.total_income,
-            'Dentist Salary Expenses (UAH)': DAILY_SALARY * DAYS,
             'Net Profit (UAH)': net_profit,
             'Lost Clients': self.lost_clients,
             'Lost Profit (UAH)': self.lost_profit,
-            'Dentist Load (%)': round((self.dentist.total_worked_hours / TOTAL_STEPS) * 100, 2)
+            'Dentist Load (%)': (self.dentist.total_worked_hours / TOTAL_STEPS) * 100,
+            'Outages Count': self.outages_count,
+            'Outage Hours Lost': self.outage_hours_total
         }
-        return results
 
 
-# Запуск моделі на 1 тиждень
-clinic = Clinic()
-final_results = clinic.run_simulation()
+# --- EXECUTION OF TASK 10: 100 MODEL RUNS ---
+def run_multiple_simulations(runs=100, queue_limit=3, arrival_multiplier=1.0):
+    results = []
+    for _ in range(runs):
+        clinic = Clinic(queue_limit=queue_limit, arrival_multiplier=arrival_multiplier)
+        results.append(clinic.run_simulation())
 
-# Виведення підсумків
-print("--- Підсумки симуляції за 1 тиждень (1 канал) ---")
-for key, value in final_results.items():
-    print(f"{key}: {value}")
+    df_results = pd.DataFrame(results)
+    averages = df_results.mean().round(2)
+    return averages
 
-# Виведення фрагменту логу (перший день)
-df_log = pd.DataFrame(clinic.log)
-print("\n--- Лог першого дня моделювання ---")
-print(df_log[df_log['Day'] == 1].to_string(index=False))
+
+print("=== TASK 10: Averaged results over 100 runs (Base model) ===")
+base_averages = run_multiple_simulations(runs=100)
+print(base_averages.to_string())
+print("\n")
+
+# --- EXECUTION OF TASK 9: MODEL ADEQUACY CHECK ---
+print("=== TASK 9: Model adequacy check ===")
+
+# Test 1: Zero client flow (nobody arrives)
+print("\nTest 1: Zero client flow (arrival_multiplier = 0)")
+test1_avg = run_multiple_simulations(runs=10, arrival_multiplier=0)
+print(test1_avg.to_string())
+# Expectation: Income 0, Lost clients 0, Load 0%, Outages may still occur.
+
+# Test 2: Extremely high client flow (arrival_multiplier = 10)
+print("\nTest 2: Extremely high client flow (arrival_multiplier = 10)")
+test2_avg = run_multiple_simulations(runs=10, arrival_multiplier=10)
+print(test2_avg.to_string())
+# Expectation: Huge number of lost clients, dentist load close to 100% (minus Outage Hours Lost).
+
+# Test 3: No queue capacity (queue_limit = 0)
+print("\nTest 3: Operation without queue (queue_limit = 0)")
+test3_avg = run_multiple_simulations(runs=10, queue_limit=0)
+print(test3_avg.to_string())
+# Expectation: Any client arriving when the doctor is busy is immediately lost. Number of lost clients will increase compared to the base model.
