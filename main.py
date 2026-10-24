@@ -301,17 +301,35 @@ if __name__ == "__main__":
     print("=== 14. Model adequacy check (Tested on 3 Dentists) ===")
     print("=" * 50)
 
-    # # Test 1: Zero client flow (nobody arrives)
-    # print("\nTest 1: Zero client flow (arrival_multiplier = 0)")
-    # test1_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=0)
-    # print(test1_avg.to_string())
-    #
-    # # Test 2: Extremely high client flow (arrival_multiplier = 10)
-    # print("\nTest 2: Extremely high client flow (arrival_multiplier = 10, 3 dentists)")
-    # test2_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=10)
-    # print(test2_avg.to_string())
-    #
-    # # Test 3: No queue capacity (queue_limit = 0)
-    # print("\nTest 3: Operation without queue (queue_limit = 0)")
-    # test3_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, queue_limit=0)
-    # print(test3_avg.to_string())
+# tests for 1 channel
+# # Test 1: Zero client flow (nobody arrives)
+# print("\nTest 1: Zero client flow (arrival_multiplier = 0)")
+# test1_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=0)
+# print(test1_avg.to_string())
+#
+# # Test 2: Extremely high client flow (arrival_multiplier = 10)
+# print("\nTest 2: Extremely high client flow (arrival_multiplier = 10, 3 dentists)")
+# test2_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=10)
+# print(test2_avg.to_string())
+#
+# # Test 3: No queue capacity (queue_limit = 0)
+# print("\nTest 3: Operation without queue (queue_limit = 0)")
+# test3_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, queue_limit=0)
+# print(test3_avg.to_string())
+
+# Tests for multi-channel system (3 dentists)
+
+# Test 1: Zero client flow (nobody arrives, checking maximum idle time and 3x salary losses)
+print("\nTest 1: Zero client flow (arrival_multiplier = 0, 3 dentists)")
+test1_multi_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=0)
+print(test1_multi_avg.to_string())
+
+# Test 2: Extremely high client flow (checking maximum throughput of 3 channels)
+print("\nTest 2: Extremely high client flow (arrival_multiplier = 10, 3 dentists)")
+test2_multi_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, arrival_multiplier=10)
+print(test2_multi_avg.to_string())
+
+# Test 3: No queue capacity (relying strictly on the 3 parallel servicing channels)
+print("\nTest 3: Operation without queue (queue_limit = 0, 3 dentists)")
+test3_multi_avg, _ = run_multiple_simulations(runs=10, num_dentists=3, queue_limit=0)
+print(test3_multi_avg.to_string())
