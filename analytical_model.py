@@ -9,29 +9,24 @@ mu_rate = 1 / t_service
 c = 3
 m = 3
 work_hours_per_week = 45
-salary_per_week_per_dentist = 10000  # 2000 UAH * 5 days
-avg_service_cost = 1550  # 500*0.3 + 1500*0.2 + 2000*0.4 + 3000*0.1
+salary_per_week_per_dentist = 10000
+avg_service_cost = 1550
 
 rho = lambda_rate / mu_rate
 
-# Calculate P0 (Probability of empty system)
 sum_c = sum((rho**k) / math.factorial(k) for k in range(c + 1))
 sum_m = sum((rho / c)**i for i in range(1, m + 1))
 p0 = 1 / (sum_c + ((rho**c) / math.factorial(c)) * sum_m)
 
-# Calculate Probability of rejection (Prej)
 p_rej = ((rho**c) / math.factorial(c)) * ((rho / c)**m) * p0
 
-# Calculate Throughput characteristics
 Q = 1 - p_rej
 A = lambda_rate * Q
 
-# Calculate System state metrics
 k_busy = A / mu_rate
 load_percent = (k_busy / c) * 100
 k_free = c - k_busy
 
-# Calculate Weekly Financial metrics
 served_weekly = A * work_hours_per_week
 lost_weekly = (lambda_rate - A) * work_hours_per_week
 
