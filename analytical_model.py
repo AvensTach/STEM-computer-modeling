@@ -103,20 +103,6 @@ plt.pie(pie_sizes, labels=pie_labels, autopct='%1.1f%%', startangle=140,
 plt.title(f'Середній розподіл часу клініки (Аналітична модель, Лікарів: {c})')
 plt.tight_layout()
 
-# Window 3: Probabilities
-plt.figure(figsize=(8, 6))
-labels_prob = ['P0\n(Вільна)', 'P_відм\n(Відмова)', 'Q\n(Прийнято)']
-values_prob = [p0, p_rej, Q]
-bars_prob = plt.bar(labels_prob, values_prob, color=['#DDDDDD', '#C44E52', '#55A868'], edgecolor='black')
-plt.title('Ймовірності системи (Аналітична модель)')
-plt.ylabel('Ймовірність')
-plt.ylim(0, 1.1)
-
-for bar in bars_prob:
-    yval = bar.get_height()
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.02,
-             f"{yval:.4f}", ha='center', va='bottom')
-plt.tight_layout()
 
 # Show all windows simultaneously
 plt.show()
